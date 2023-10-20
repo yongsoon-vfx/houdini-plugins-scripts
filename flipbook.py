@@ -7,6 +7,8 @@ from pathlib import Path
 import logging
 
 start_time = time.time()
+coreCount = os.cpu_count()
+
 
 ct = time.strftime("%H%M%S", time.localtime())
 
@@ -16,6 +18,7 @@ hipfile = hou.text.expandString("$HIPFILE")
 hipname = hou.hipFile.basename().rstrip(".hip")
 
 outFile = "Preview_" + hipname + "_" + ct + ".mp4"
+
 
 # Create Working Directories if does not Exist
 tempdir = tempfile.gettempdir()
@@ -136,7 +139,7 @@ class Flipbook(QtWidgets.QWidget):
         self.input_threads.setGeometry(QtCore.QRect(10, 230, 42, 30))
         self.input_threads.setMinimum(1)
         self.input_threads.setMaximum(32)
-        self.input_threads.setProperty("value", 8)
+        self.input_threads.setProperty("value", coreCount - 4)
         self.input_threads.setObjectName("input_threads")
         self.label_threads = QtWidgets.QLabel(self.tab_advanced)
         self.label_threads.setGeometry(QtCore.QRect(10, 200, 91, 30))
@@ -371,7 +374,7 @@ class Flipbook(QtWidgets.QWidget):
         format = "%(asctime)s: %(message)s"
         logging.basicConfig(format=format, level=logging.INFO, datefmt="%H:%M:%S")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.input_threads.value()) as executor:
             executor.map(self.processImg, images)
         print("--- %s seconds ---" % (time.time() - start_time))
 
