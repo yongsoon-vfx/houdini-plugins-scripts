@@ -1,10 +1,8 @@
-import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, re
+import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, logging, concurrent.futures
 from PySide2 import QtCore, QtWidgets, QtGui
 from tkinter import messagebox, Tk
 from PIL import Image, ImageDraw, ImageFont
-import concurrent.futures
 from pathlib import Path
-import logging
 
 start_time = time.time()
 coreCount = os.cpu_count()
@@ -374,7 +372,9 @@ class Flipbook(QtWidgets.QWidget):
         format = "%(asctime)s: %(message)s"
         logging.basicConfig(format=format, level=logging.INFO, datefmt="%H:%M:%S")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.input_threads.value()) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.input_threads.value()
+        ) as executor:
             executor.map(self.processImg, images)
         print("--- %s seconds ---" % (time.time() - start_time))
 
