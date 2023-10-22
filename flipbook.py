@@ -1,4 +1,4 @@
-import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, logging, concurrent.futures
+import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, logging, concurrent.futures 
 from PySide2 import QtCore, QtWidgets, QtGui
 from tkinter import messagebox, Tk
 from PIL import Image, ImageDraw, ImageFont
@@ -47,9 +47,9 @@ resHeight = str(int(frameResolution[1]))
 frameFps = str(int(hou.fps()))
 # print(frameFps)
 
-checkDep = subprocess.run("ffmpeg -h", shell=True)
+checkDep = subprocess.run("ffmpdeg -h", shell=True)
 if checkDep.returncode != 0:
-    depText = "FFMPEG IS NOT INSTALLED. https://ffmpeg.org/download.html"
+    depText = "FFMPEG IS NOT INSTALLED. \nhttps://ffmpeg.org/download.html"
 else:
     depText = "Ffmpeg found"
 
@@ -74,6 +74,8 @@ class Flipbook(QtWidgets.QWidget):
         self.tab_Main.setDocumentMode(False)
         self.tab_Main.setObjectName("tab_Main")
         self.tab_Main.setFont(font)
+
+        layout = QtWidgets.QVBoxLayout()
 
         # --------Settings Tab--------
         self.tab_settings = QtWidgets.QWidget()
@@ -205,6 +207,15 @@ class Flipbook(QtWidgets.QWidget):
         self.btn_select_top_out.setGeometry(QtCore.QRect(265, 40, 30, 30))
         self.btn_select_top_out.setObjectName("btn_select_top_out")
         self.tab_Main.addTab(self.tab_wedge, "")
+        dFont = QtGui.QFont()
+        dFont.setPointSize(9)
+        dFont.setItalic(True)
+        self.label_wedgeDesc = QtWidgets.QLabel(self.tab_wedge)
+        self.label_wedgeDesc.setFont(dFont)
+        self.label_wedgeDesc.setGeometry(QtCore.QRect(10,55,350,60))
+        self.label_wedgeDesc.setObjectName("label_wedgeDesc")
+
+
 
         # --------Output Box
         self.box_Output = QtWidgets.QGroupBox(self)
@@ -225,7 +236,7 @@ class Flipbook(QtWidgets.QWidget):
         self.label_dep.setGeometry(QtCore.QRect(10, 170, 250, 50))
         self.label_dep.setObjectName("label_dep")
         self.dlabel_ffmpeg = QtWidgets.QLabel(self.box_Output)
-        self.dlabel_ffmpeg.setGeometry(QtCore.QRect(10, 200, 250, 50))
+        self.dlabel_ffmpeg.setGeometry(QtCore.QRect(10, 200, 250, 60))
         self.dlabel_ffmpeg.setObjectName("dlabel_ffmpeg")
         self.buttonBox = QtWidgets.QDialogButtonBox(self.box_Output)
         self.buttonBox.setGeometry(QtCore.QRect(0, 340, 250, 50))
@@ -243,6 +254,7 @@ class Flipbook(QtWidgets.QWidget):
         self.buttonBox.accepted.connect(self.runFlipbook)
         self.input_resheight.textChanged.connect(self.updateRes)
         self.input_reswidth.textChanged.connect(self.updateRes)
+        self.btn_select_top_out.clicked.connect(self.wedgeSelect)
 
         # type: ignore
         QtCore.QMetaObject.connectSlotsByName(self)
@@ -270,6 +282,8 @@ class Flipbook(QtWidgets.QWidget):
         self.label_dep.setText(_translate("Form", "Dependencies"))
         self.label_threads.setText(_translate("Form", "Threads"))
         self.label_watermark.setText(_translate("Form", "Watermark Overlay"))
+        self.label_wedgeDesc.setText(_translate("Form", "Select the Output TOP Node, then click the button"))
+
         # Dynamic Labels
         self.dlabel_out_file.setText(_translate("Form", outFile))
         self.dlabel_res_frames.setText(
@@ -305,6 +319,15 @@ class Flipbook(QtWidgets.QWidget):
         )
         self.box_Output.setTitle(_translate("Form", "Output"))
 
+    def wedgeSelect(self):
+        try:
+            outTOP = hou.selectedNodes()
+            outTOP = outTOP[-1].path()
+            self.input_node.setText(outTOP)
+        except IndexError:
+            hou.ui.displayMessage('No Node Selected',buttons=('OK',))
+
+
     def updateRes(self):
         resWidth = int(self.input_reswidth.text())
         resHeight = int(self.input_resheight.text())
@@ -315,8 +338,8 @@ class Flipbook(QtWidgets.QWidget):
     def runFlipbook(self):
         # check dependencies
         if checkDep.returncode != 0:
-            messagebox.showerror("FFMPEG Not Installed", "Open Link in Browser")
-            webbrowser.open("https://ffmpeg.org/download.html")
+            if hou.ui.displayMessage('FFMpeg is not installed.\nOpen Link in Browser?',buttons=('Open','Cancel',)) == 0:
+                webbrowser.open("https://ffmpeg.org/download.html")
             return
         # save
         hou.hipFile.save()
