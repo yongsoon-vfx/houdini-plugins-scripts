@@ -47,7 +47,7 @@ resHeight = str(int(frameResolution[1]))
 frameFps = str(int(hou.fps()))
 # print(frameFps)
 
-checkDep = subprocess.run("ffmpdeg -h", shell=True)
+checkDep = subprocess.run("ffmpeg -h", shell=True)
 if checkDep.returncode != 0:
     depText = "FFMPEG IS NOT INSTALLED. \nhttps://ffmpeg.org/download.html"
 else:
