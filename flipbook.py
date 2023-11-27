@@ -1,4 +1,4 @@
-import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, logging, concurrent.futures 
+import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, logging, concurrent.futures
 from PySide2 import QtCore, QtWidgets, QtGui
 from tkinter import messagebox, Tk
 from PIL import Image, ImageDraw, ImageFont
@@ -21,7 +21,7 @@ outFile = "Preview_" + hipname + "_" + ct + ".mp4"
 # Create Working Directories if does not Exist
 tempdir = tempfile.gettempdir()
 tempdir = tempdir + "/flipbook/"
-# print(tempdir)
+print(tempdir)
 outdir = hipdir + "/flipbooks"
 backupdir = outdir + "/snapshot/"
 if not os.path.exists(tempdir):
@@ -212,10 +212,8 @@ class Flipbook(QtWidgets.QWidget):
         dFont.setItalic(True)
         self.label_wedgeDesc = QtWidgets.QLabel(self.tab_wedge)
         self.label_wedgeDesc.setFont(dFont)
-        self.label_wedgeDesc.setGeometry(QtCore.QRect(10,55,350,60))
+        self.label_wedgeDesc.setGeometry(QtCore.QRect(10, 55, 350, 60))
         self.label_wedgeDesc.setObjectName("label_wedgeDesc")
-
-
 
         # --------Output Box
         self.box_Output = QtWidgets.QGroupBox(self)
@@ -282,7 +280,9 @@ class Flipbook(QtWidgets.QWidget):
         self.label_dep.setText(_translate("Form", "Dependencies"))
         self.label_threads.setText(_translate("Form", "Threads"))
         self.label_watermark.setText(_translate("Form", "Watermark Overlay"))
-        self.label_wedgeDesc.setText(_translate("Form", "Select the Output TOP Node, then click the button"))
+        self.label_wedgeDesc.setText(
+            _translate("Form", "Select the Output TOP Node, then click the button")
+        )
 
         # Dynamic Labels
         self.dlabel_out_file.setText(_translate("Form", outFile))
@@ -320,13 +320,10 @@ class Flipbook(QtWidgets.QWidget):
         self.box_Output.setTitle(_translate("Form", "Output"))
 
     def wedgeSelect(self):
-        try:
-            outTOP = hou.selectedNodes()
-            outTOP = outTOP[-1].path()
-            self.input_node.setText(outTOP)
-        except IndexError:
-            hou.ui.displayMessage('No Node Selected',buttons=('OK',))
-
+        wedgePath = hou.ui.selectNode(multiple_select=False, title="Lowest Wedge Node")
+        self.input_node.setText(wedgePath)
+        self.activateWindow()
+        wedgeNode = hou.node(wedgePath)
 
     def updateRes(self):
         resWidth = int(self.input_reswidth.text())
@@ -338,7 +335,16 @@ class Flipbook(QtWidgets.QWidget):
     def runFlipbook(self):
         # check dependencies
         if checkDep.returncode != 0:
-            if hou.ui.displayMessage('FFMpeg is not installed.\nOpen Link in Browser?',buttons=('Open','Cancel',)) == 0:
+            if (
+                hou.ui.displayMessage(
+                    "FFMpeg is not installed.\nOpen Link in Browser?",
+                    buttons=(
+                        "Open",
+                        "Cancel",
+                    ),
+                )
+                == 0
+            ):
                 webbrowser.open("https://ffmpeg.org/download.html")
             return
         # save
