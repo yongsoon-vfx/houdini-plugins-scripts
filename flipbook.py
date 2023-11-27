@@ -351,8 +351,6 @@ class Flipbook(QtWidgets.QWidget):
         hou.hipFile.save()
 
         # initialize settings
-        scene = toolutils.sceneViewer()
-        settings = scene.flipbookSettings()
         settings.output(tempdir + "flipbook_$F.jpg")
 
         # override-properties-from-inputs
