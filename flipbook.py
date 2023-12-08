@@ -1,35 +1,38 @@
 import toolutils, hou, os, time, subprocess, shutil, tempfile, webbrowser, logging, concurrent.futures
 from PySide2 import QtCore, QtWidgets, QtGui
-from tkinter import messagebox, Tk
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 
 start_time = time.time()
 coreCount = os.cpu_count()
 
-
+#Initialize Variables
 ct = time.strftime("%H%M%S", time.localtime())
-
 hipdir = hou.text.expandString("$HIP")
 # hipver = hou.text.expandString("$HIPVER")
 hipfile = hou.text.expandString("$HIPFILE")
 hipname = hou.hipFile.basename().rstrip(".hip")
-
 outFile = "Preview_" + hipname + "_" + ct + ".mp4"
+
+#Logging
+format = "%(asctime)s: %(message)s"
+logging.basicConfig(format=format,level=logging.INFO,datefmt="%H:%M:%S")
 
 
 # Create Working Directories if does not Exist
 tempdir = tempfile.gettempdir()
-tempdir = tempdir + "/flipbook/"
-print(tempdir)
-outdir = hipdir + "/flipbooks"
-backupdir = outdir + "/snapshot/"
+tempdir = os.path.join(os.path.abspath(tempdir),"flipbook")
+outdir = os.path.join(os.path.abspath(hipdir),"flipbooks")
+backupdir = os.path.join(outdir,"snapshot")
+
+
 if not os.path.exists(tempdir):
     os.mkdir(tempdir)
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 if not os.path.exists(backupdir):
     os.mkdir(backupdir)
+logging.info(f'\n====INIT====\nDirectories: \n Temp Dir: {os.path.realpath(tempdir)} \n Output: {os.path.realpath(outdir)} \n Backups: {os.path.realpath(backupdir)}\n============')
 
 # Initialize Current Scene Settings
 scene = toolutils.sceneViewer()
@@ -45,7 +48,6 @@ resWidth = str(int(frameResolution[0]))
 resHeight = str(int(frameResolution[1]))
 
 frameFps = str(int(hou.fps()))
-# print(frameFps)
 
 checkDep = subprocess.run("ffmpeg -h", shell=True)
 if checkDep.returncode != 0:
@@ -53,13 +55,12 @@ if checkDep.returncode != 0:
 else:
     depText = "Ffmpeg found"
 
-root = Tk()
-root.withdraw()
-
 
 class Flipbook(QtWidgets.QWidget):
+
     def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
+        #QtWidgets.QWidget.__init__(self, parent)
+        super().__init__()
 
         self.setObjectName("Form")
         self.setFixedSize(930, 420)
@@ -92,15 +93,16 @@ class Flipbook(QtWidgets.QWidget):
         self.label_fps.setObjectName("label_fps")
         self.input_fps = QtWidgets.QSpinBox(self.tab_settings)
         self.input_fps.setGeometry(QtCore.QRect(165, 35, 42, 30))
-        self.input_fps.setButtonSymbols(QtWidgets.QAbstractSpinBox.UpDownArrows)
+        self.input_fps.setButtonSymbols(
+            QtWidgets.QAbstractSpinBox.UpDownArrows)
         self.input_fps.setProperty("value", 25)
         self.input_fps.setObjectName("input_fps")
 
         self.label_fstep = QtWidgets.QLabel(self.tab_settings)
         self.label_fstep.setGeometry(QtCore.QRect(190, 15, 41, 20))
-        self.label_fstep.setAlignment(
-            QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter
-        )
+        self.label_fstep.setAlignment(QtCore.Qt.AlignRight
+                                      | QtCore.Qt.AlignTrailing
+                                      | QtCore.Qt.AlignVCenter)
         self.label_fstep.setObjectName("label_fstep")
         self.input_fstep = QtWidgets.QLineEdit(self.tab_settings)
         self.input_fstep.setGeometry(QtCore.QRect(210, 35, 30, 30))
@@ -129,6 +131,14 @@ class Flipbook(QtWidgets.QWidget):
         self.check_backup.setGeometry(QtCore.QRect(20, 210, 250, 30))
         self.check_backup.setChecked(True)
         self.check_backup.setObjectName("check_backup")
+        self.check_overlay = QtWidgets.QCheckBox(self.tab_settings)
+        self.check_overlay.setGeometry(QtCore.QRect(20, 240, 250, 30))
+        self.check_overlay.setChecked(True)
+        self.check_overlay.setObjectName("check_overlay")
+        self.check_debug = QtWidgets.QCheckBox(self.tab_settings)
+        self.check_debug.setGeometry(QtCore.QRect(20, 320, 250, 30))
+        self.check_debug.setChecked(False)
+        self.check_debug.setObjectName("check_debug")
 
         self.tab_Main.addTab(self.tab_settings, "")
 
@@ -239,9 +249,8 @@ class Flipbook(QtWidgets.QWidget):
         self.buttonBox = QtWidgets.QDialogButtonBox(self.box_Output)
         self.buttonBox.setGeometry(QtCore.QRect(0, 340, 250, 50))
         self.buttonBox.setFocusPolicy(QtCore.Qt.TabFocus)
-        self.buttonBox.setStandardButtons(
-            QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok
-        )
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel
+                                          | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
 
         self.retranslateUi(self)
@@ -253,6 +262,8 @@ class Flipbook(QtWidgets.QWidget):
         self.input_resheight.textChanged.connect(self.updateRes)
         self.input_reswidth.textChanged.connect(self.updateRes)
         self.btn_select_top_out.clicked.connect(self.wedgeSelect)
+        self.check_debug.stateChanged.connect(self.debugOn)
+        self.check_overlay.stateChanged.connect(self.overlayUpdate)
 
         # type: ignore
         QtCore.QMetaObject.connectSlotsByName(self)
@@ -281,25 +292,27 @@ class Flipbook(QtWidgets.QWidget):
         self.label_threads.setText(_translate("Form", "Threads"))
         self.label_watermark.setText(_translate("Form", "Watermark Overlay"))
         self.label_wedgeDesc.setText(
-            _translate("Form", "Select the Output TOP Node, then click the button")
-        )
+            _translate("Form",
+                       "Select the Output TOP Node, then click the button"))
 
         # Dynamic Labels
         self.dlabel_out_file.setText(_translate("Form", outFile))
         self.dlabel_res_frames.setText(
-            _translate("Form", resWidth + "x" + resHeight + "@" + frameFps + "fps")
-        )
+            _translate("Form", f'{resWidth}x{resHeight}@{frameFps}fps'))
         self.dlabel_ffmpeg.setText(_translate("Form", depText))
         # Input Boxes
         self.input_fstep.setText(_translate("Form", "1"))
         self.input_reswidth.setText(_translate("Form", resWidth))
         self.input_resheight.setText(_translate("Form", resHeight))
-        self.input_frange.setText(_translate("Form", frameStart + "-" + frameEnd))
+        self.input_frange.setText(
+            _translate("Form", frameStart + "-" + frameEnd))
         self.input_watermark.setText(_translate("Form", "Heckler SG"))
         self.input_titleoverlay.setText(_translate("Form", "hipfile"))
         # Checkboxes
         self.check_deltemp.setText(_translate("Form", "Delete Temp Files"))
         self.check_backup.setText(_translate("Form", "Create Backup HIP"))
+        self.check_overlay.setText(_translate("Form","Overlay Text"))
+        self.check_debug.setText(_translate('Form','Debug Mode'))
         self.cb_frame_overlay.setText(_translate("Form", "Frame Num"))
         self.cb_placeholder1.setText(_translate("Form", "Placeholder1"))
         self.cb_placeholder2.setText(_translate("Form", "Placeholder2"))
@@ -308,19 +321,26 @@ class Flipbook(QtWidgets.QWidget):
         self.check_mp4.setText(_translate("Form", "MP4"))
 
         self.btn_select_top_out.setText(_translate("Form", "..."))
-        self.tab_Main.setTabText(
-            self.tab_Main.indexOf(self.tab_settings), _translate("Form", "Settings")
-        )
-        self.tab_Main.setTabText(
-            self.tab_Main.indexOf(self.tab_advanced), _translate("Form", "Advanced")
-        )
-        self.tab_Main.setTabText(
-            self.tab_Main.indexOf(self.tab_wedge), _translate("Form", "Wedging")
-        )
+        self.tab_Main.setTabText(self.tab_Main.indexOf(self.tab_settings),
+                                 _translate("Form", "Settings"))
+        self.tab_Main.setTabText(self.tab_Main.indexOf(self.tab_advanced),
+                                 _translate("Form", "Advanced"))
+        self.tab_Main.setTabText(self.tab_Main.indexOf(self.tab_wedge),
+                                 _translate("Form", "Wedging"))
         self.box_Output.setTitle(_translate("Form", "Output"))
 
+    def debugOn(self):
+        print('test')
+
+    def overlayUpdate(self):
+        if self.check_overlay.isChecked() == True:
+            logging.info("Overlay On")
+        else:
+            logging.info("Overlay Off")
+
     def wedgeSelect(self):
-        wedgePath = hou.ui.selectNode(multiple_select=False, title="Lowest Wedge Node")
+        wedgePath = hou.ui.selectNode(multiple_select=False,
+                                      title="Lowest Wedge Node")
         self.input_node.setText(wedgePath)
         self.activateWindow()
         wedgeNode = hou.node(wedgePath)
@@ -329,33 +349,33 @@ class Flipbook(QtWidgets.QWidget):
         resWidth = int(self.input_reswidth.text())
         resHeight = int(self.input_resheight.text())
         self.dlabel_res_frames.setText(
-            str(resWidth) + "x" + str(resHeight) + "@" + str(frameFps) + "fps"
-        )
+            str(resWidth) + "x" + str(resHeight) + "@" + str(frameFps) + "fps")
 
     def runFlipbook(self):
         # check dependencies
         if checkDep.returncode != 0:
-            if (
-                hou.ui.displayMessage(
+            if (hou.ui.displayMessage(
                     "FFMpeg is not installed.\nOpen Link in Browser?",
                     buttons=(
                         "Open",
                         "Cancel",
                     ),
-                )
-                == 0
-            ):
+            ) == 0):
                 webbrowser.open("https://ffmpeg.org/download.html")
             return
         # save
         hou.hipFile.save()
 
         # initialize settings
-        settings.output(tempdir + "flipbook_$F.jpg")
+        scene = toolutils.sceneViewer()
+        settings = scene.flipbookSettings()
+        settings.output(tempdir + "/flipbook_$F.jpg")
 
         # override-properties-from-inputs
-        outframeRange = tuple(map(int, str(self.input_frange.text()).split("-")))
-        print(outframeRange)
+        outframeRange = tuple(
+            map(int,
+                str(self.input_frange.text()).split("-")))
+        logging.info(f'Frame Range is {outframeRange}')
         settings.frameRange(outframeRange)
 
         outresHeight = int(self.input_resheight.text())
@@ -365,8 +385,9 @@ class Flipbook(QtWidgets.QWidget):
         settings.resolution(outresolution)
 
         scene.flipbook(None, settings)
-        print("flipbookdone")
-        self.executeProcess()
+        logging.info('Flipbook Done')
+        if self.check_overlay.isChecked() == True:
+            self.executeProcess()
         self.runFfmpeg()
         self.cleanUp()
         self.copySnapshot()
@@ -374,36 +395,31 @@ class Flipbook(QtWidgets.QWidget):
 
     @staticmethod
     def runFfmpeg():
-        ffmpegcom = 'ffmpeg -r 25 -i "flipbook_%0d.jpg" -vcodec libx264 flipbookout.mp4'
+        ffmpegcom = f'ffmpeg -r {frameFps} -i "flipbook_%0d.jpg" -vcodec libx264 flipbookout.mp4'
         os.chdir(tempdir)
         subprocess.run(ffmpegcom)
         out = os.path.abspath(
-            shutil.move(tempdir + "flipbookout.mp4", outdir + "/" + outFile)
-        )
-        print("ffmpeg-encode-done")
+            shutil.move(os.path.join(tempdir,"flipbookout.mp4"), os.path.join(outdir,"",outFile)))
+        logging.info(f'FFMpeg Encode at\n {outFile}')
         os.startfile(out)
 
     @staticmethod
     def cleanUp():
         os.chdir(hipdir)
         shutil.rmtree(tempdir)
-        print("cleanupcomplete")
+        logging.info('Cleaned Up Temp Dir')
 
     @staticmethod
     def copySnapshot():
-        shutil.copy(hipfile, backupdir + ct + ".hip")
-        print("snapshotcreated")
+        out = shutil.copy(hipfile, os.path.join(backupdir,"",f"{ct}_{hipname}.hip"))
+        logging.info(f'Snapshot Created at\n {out}')
 
     def executeProcess(self):
         images = Path(tempdir).glob("*.jpg")
-        format = "%(asctime)s: %(message)s"
-        logging.basicConfig(format=format, level=logging.INFO, datefmt="%H:%M:%S")
-
         with concurrent.futures.ThreadPoolExecutor(
-            max_workers=self.input_threads.value()
-        ) as executor:
+                max_workers=self.input_threads.value()) as executor:
             executor.map(self.processImg, images)
-        print("--- %s seconds ---" % (time.time() - start_time))
+        
 
     @staticmethod
     def processImg(cimage):
@@ -413,16 +429,18 @@ class Flipbook(QtWidgets.QWidget):
             d = ImageDraw.Draw(txt)
             height = base.size[1]
             fntTitle = ImageFont.truetype("C:\WINDOWS\FONTS\Verdana.TTF", 15)
-            fntWatermark = ImageFont.truetype("C:\WINDOWS\FONTS\Verdana.TTF", 40)
+            fntWatermark = ImageFont.truetype("C:\WINDOWS\FONTS\Verdana.TTF",
+                                              40)
             d.text(
                 (10, height - 50),
                 "Heckler SG",
                 fill=(255, 255, 255, 128),
                 font=fntWatermark,
             )
-            d.text(
-                (10, 10), outFile + "_" + ct, fill=(255, 255, 255, 128), font=fntTitle
-            )
+            d.text((10, 10),
+                   outFile + "_" + ct,
+                   fill=(255, 255, 255, 128),
+                   font=fntTitle)
             d.text(
                 (base.size[0] - 50, 10),
                 cFrame,
@@ -433,7 +451,8 @@ class Flipbook(QtWidgets.QWidget):
             out = Image.alpha_composite(base, txt)
             out = out.convert("RGB")
             out.save(cimage)
-        print("--- %s seconds ---" % (time.time() - start_time))
+            logging.info(f'Frame {cFrame} Processed')
+        
 
 
 dialog = Flipbook()
