@@ -1,16 +1,17 @@
-import hou, os, re
+import hou, os, re, subprocess , time, socket
 
 # Dictionary for Matching File to Node
 # Syntax is extension: [nodeType,nodeParm]
 typeMatchSOP = {
     "obj": ["file", "file"],
-    "abc": ["file", "file"],
+    "abc": ["alembic", "fileName"],
     "fbx": ["file", "file"],
     "png": ["uvquickshade", "texture"],
     "jpg": ["uvquickshade", "texture"],
     "bmp": ["uvquickshade", "texture"],
     "exr": ["uvquickshade", "texture"],
-    "tiff": ["uvquickshade", "texture"]
+    "tiff": ["uvquickshade", "texture"],
+    "blend": [None,None]
 }
 
 typeMatchSHOP = {
@@ -61,6 +62,10 @@ def creategeoNode(file, network, context, pos):
     nodeName = os.path.basename(file)
     ext = nodeName.split('.')[-1]
     nodeName = re.sub(r"[^0-9a-zA-Z\.]+", "_", nodeName)
+    if ext == "blend":
+        file = blenderImporter(file)
+        ext = "abc"
+
     if context in geoContext:
         nodeAttrs = typeMatchSOP.get(ext)
     elif context in shaderContext:
@@ -87,3 +92,21 @@ def creategeoNode(file, network, context, pos):
     hou_node.setPosition(pos)
     #print(f"Imported: {nodeName}")
     return None
+
+def blenderImporter(file):
+    blenderPath = "C:/Program Files/Blender Foundation/Blender 3.5/blender.exe"
+    pythonScript = "C:/Users/Yong Soon/Documents/GitHub/houdini-plugins-scripts/blender_python_export.py"
+    alembicName = file.replace("blend","abc")
+
+    print(alembicName)
+    
+    proc = subprocess.Popen([blenderPath,"-b", file , "--python", pythonScript])
+
+    HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
+    PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((HOST, PORT))
+        s.listen()
+        s.accept()
+    return alembicName
