@@ -1,5 +1,4 @@
-import hou, os, re, subprocess , time, socket
-
+import hou, os, re, subprocess, sys, time
 # Dictionary for Matching File to Node
 # Syntax is extension: [nodeType,nodeParm]
 typeMatchSOP = {
@@ -11,7 +10,7 @@ typeMatchSOP = {
     "bmp": ["uvquickshade", "texture"],
     "exr": ["uvquickshade", "texture"],
     "tiff": ["uvquickshade", "texture"],
-    "blend": [None,None]
+    "blend": [None, None]
 }
 
 typeMatchSHOP = {
@@ -93,20 +92,28 @@ def creategeoNode(file, network, context, pos):
     #print(f"Imported: {nodeName}")
     return None
 
+
 def blenderImporter(file):
-    blenderPath = "C:/Program Files/Blender Foundation/Blender 3.5/blender.exe"
-    pythonScript = "C:/Users/Yong Soon/Documents/GitHub/houdini-plugins-scripts/blender_python_export.py"
-    alembicName = file.replace("blend","abc")
+    import threading, socket
 
-    print(alembicName)
-    
-    proc = subprocess.Popen([blenderPath,"-b", file , "--python", pythonScript])
+    blenderPath = "Y:/PIPELINE/blender/blender-4.0.2-windows-x64/blender.exe"
+    pythonScript = "Y:/RESOURCES/Ys/github-scripts-repo/houdini-plugins-scripts/blender_python_export.py"
+    alembicName = file.replace("blend", "abc")
 
-    HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
+    hou.ui.displayMessage("Exporting from Blender...\nHoudini will be locked")
+    start = time.time()
+    proc = subprocess.Popen(
+        [blenderPath, "-b", file, "--python", pythonScript])
+
+    HOST = "localhost"  # Standard loopback interface address (localhost)
     PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
         s.accept()
+    end = time.time()
+    hou.ui.displayMessage(
+        f"Blender Export Finished\nTime Took: {str(int((end-start)*100))[:5]}ms"
+    )
     return alembicName
