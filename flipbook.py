@@ -386,8 +386,8 @@ class Flipbook(QtWidgets.QWidget):
 
         scene.flipbook(None, settings)
         logging.info('Flipbook Done')
-        if self.check_overlay.isChecked() == True:
-            self.executeProcess()
+        #if self.check_overlay.isChecked() == True:
+        self.executeProcess()
         self.runFfmpeg()
         self.cleanUp()
         self.copySnapshot()
@@ -395,7 +395,7 @@ class Flipbook(QtWidgets.QWidget):
 
     @staticmethod
     def runFfmpeg():
-        ffmpegcom = f'ffmpeg -r {frameFps} -i "flipbook_%0d.jpg" -vcodec libx264 flipbookout.mp4'
+        ffmpegcom = f'ffmpeg -start_number {frameStart} -r {frameFps} -i "flipbook_%0d.jpg" -vcodec libx264 flipbookout.mp4'
         os.chdir(tempdir)
         subprocess.run(ffmpegcom)
         out = os.path.abspath(
@@ -415,6 +415,7 @@ class Flipbook(QtWidgets.QWidget):
         logging.info(f'Snapshot Created at\n {out}')
 
     def executeProcess(self):
+        print("test")
         images = Path(tempdir).glob("*.jpg")
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=self.input_threads.value()) as executor:
@@ -433,7 +434,7 @@ class Flipbook(QtWidgets.QWidget):
                                               40)
             d.text(
                 (10, height - 50),
-                "Heckler SG",
+                self.input_watermark.text(),
                 fill=(255, 255, 255, 128),
                 font=fntWatermark,
             )
